@@ -1,0 +1,98 @@
+site_name: Real-Time Anomaly Detection
+site_description: Real-time monitoring and anomaly detection for meteorological stations
+site_author: DataGEMS EOSC Project
+site_url: https://datagems-eosc.github.io/real-time-anomaly-detection/
+
+repo_name: datagems-eosc/real-time-anomaly-detection
+repo_url: https://github.com/datagems-eosc/real-time-anomaly-detection
+
+theme:
+  name: material
+  favicon: images/favicon.jpg
+  logo: images/datagems-portal-icon.png
+  icon:
+    repo: fontawesome/brands/github
+  custom_dir: overrides
+  features:
+    - navigation.path
+    - navigation.top
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+  - mermaid2
+
+extra:
+  version:
+    provider: mike
+    alias: true
+    default: latest
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/datagems-eosc
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/company/eosc-datagems
+
+extra_css:
+  - stylesheets/custom-footer.css
+  - stylesheets/extra.css
+
+nav:
+  - Overview:
+    - Introduction: index.md
+    - Key Features: overview/features.md
+    - How It Works: overview/how-it-works.md
+  - Detection Examples:
+    - Weather Event: examples/weather-event.md
+    - Device Failure: examples/device-failure.md
+  - System:
+    - Architecture: system/architecture.md
+    - Detection Methods: system/detection-methods.md
+    - Station Network: system/station-network.md
+  - API:
+    - Overview: api/overview.md
+    - Parameters: api/parameters.md
+    - Response Format: api/response.md
+    - Code Examples: api/examples.md
+  - Setup & Monitoring:
+    - Installation: setup/installation.md
+    - Configuration: setup/configuration.md
+    - Deployment: setup/deployment.md
+    - Database Options: setup/database.md
+  - FAQ: faq.md
+  - License: license.md
+
+copyright: >
+  DataGEMS is a Research and Innovation Action funded by the European Union 
+  under the Horizon Europe Research and Innovation Programme via Grant Agreement No 101188416.
+

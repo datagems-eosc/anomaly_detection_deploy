@@ -1,0 +1,47 @@
+# Anomaly Detector Manual Job
+# 手动触发异常检测
+# 使用: kubectl apply -f job-anomaly-manual.yaml
+# 查看日志: kubectl logs -f job/anomaly-manual -n upcite
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: anomaly-manual
+  namespace: upcite
+  labels:
+    app: anomaly-detector
+    type: manual
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: anomaly-detector
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: ghcr-pull-secret
+      containers:
+      - name: anomaly-detector
+        image: ghcr.io/amy-77/stream-detection:v1
+        imagePullPolicy: Always
+        command:
+        - python
+        - anomaly_detector.py
+        - --end
+        - "NOW"
+        - --window
+        - "168"
+        - --comprehensive
+        env:
+        - name: POSTGRES_DB
+          value: ds_weather_stream
+        envFrom:
+        - secretRef:
+            name: anomaly-detector-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"

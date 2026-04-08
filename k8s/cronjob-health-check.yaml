@@ -1,0 +1,51 @@
+# Long-term Health Check CronJob
+# 每天执行一次传感器健康检查
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sensor-health-check
+  namespace: upcite
+  labels:
+    app: sensor-health-check
+    component: monitoring
+spec:
+  schedule: "0 8 * * *"  # 每天早上8点执行
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: sensor-health-check
+        spec:
+          restartPolicy: Never
+          imagePullSecrets:
+          - name: ghcr-pull-secret
+          containers:
+          - name: health-checker
+            image: ghcr.io/amy-77/stream-detection:v1
+            imagePullPolicy: Always
+            command:
+            - python
+            - anomaly_detector.py
+            - --health-check
+            - --days
+            - "30"
+            - --output-json
+            - /tmp/health_report.json
+            env:
+            - name: POSTGRES_DB
+              value: ds_weather_stream
+            envFrom:
+            - secretRef:
+                name: anomaly-detector-secrets
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"

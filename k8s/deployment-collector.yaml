@@ -1,0 +1,59 @@
+# Weather Stream Collector Deployment
+# 持续运行的数据采集服务
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-stream-collector
+  namespace: upcite
+  labels:
+    app: weather-stream-collector
+    component: data-collection
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-stream-collector
+  template:
+    metadata:
+      labels:
+        app: weather-stream-collector
+        component: data-collection
+    spec:
+      imagePullSecrets:
+      - name: ghcr-pull-secret
+      containers:
+      - name: collector
+        image: ghcr.io/amy-77/stream-detection:v1
+        imagePullPolicy: Always
+        env:
+        - name: POSTGRES_DB
+          value: ds_weather_stream
+        # Database credentials from Vault (anomaly-detector-secrets)
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: anomaly-detector-secrets
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: anomaly-detector-secrets
+              key: POSTGRES_PASSWORD
+        - name: POSTGRES_TIMESCALE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: anomaly-detector-secrets
+              key: POSTGRES_TIMESCALE_HOST
+        - name: POSTGRES_TIMESCALE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: anomaly-detector-secrets
+              key: POSTGRES_TIMESCALE_PORT
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      restartPolicy: Always

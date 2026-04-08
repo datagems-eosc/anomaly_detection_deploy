@@ -1,0 +1,53 @@
+# Anomaly Detector CronJob
+# 定时执行异常检测（每6小时执行一次）
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: anomaly-detector
+  namespace: upcite
+  labels:
+    app: anomaly-detector
+    component: anomaly-detection
+spec:
+  schedule: "0 */6 * * *"  # 每6小时执行一次
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app: anomaly-detector
+        spec:
+          restartPolicy: Never
+          imagePullSecrets:
+          - name: ghcr-pull-secret
+          containers:
+          - name: anomaly-detector
+            image: ghcr.io/amy-77/stream-detection:v1
+            imagePullPolicy: Always
+            command:
+            - python
+            - anomaly_detector.py
+            - --end
+            - "NOW"
+            - --window
+            - "168"
+            - --comprehensive
+            - --output-json
+            - /tmp/anomaly_report.json
+            env:
+            - name: POSTGRES_DB
+              value: ds_weather_stream
+            envFrom:
+            - secretRef:
+                name: anomaly-detector-secrets
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "200m"
+              limits:
+                memory: "1Gi"
+                cpu: "1000m"

@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # PostgreSQL + TimescaleDB 数据库
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: datagem-postgres
+    environment:
+      POSTGRES_USER: datagems
+      POSTGRES_PASSWORD: datagems2024
+      POSTGRES_DB: datagems
+    ports:
+      - "5432:5432"
+    volumes:
+      - datagem_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U datagems -d datagems"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Python 数据收集应用
+  datagem:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: datagem-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://datagems:datagems2024@postgres:5432/datagems
+    volumes:
+      - ./:/app
+      - datagem_logs:/app/logs
+    restart: unless-stopped
+    command: >
+      python streaming_collector_sqlite.py 
+      --pg-url "postgresql://datagems:datagems2024@postgres:5432/datagems"
+      --continuous
+      --interval 600
+
+volumes:
+  datagem_pgdata:
+    name: datagem_pgdata
+  datagem_logs:
+    name: datagem_logs

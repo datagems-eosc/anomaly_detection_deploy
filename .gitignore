@@ -1,0 +1,39 @@
+# Data files
+*.db
+*.sqlite
+*.csv
+
+# Logs
+*.log
+logs/
+
+# Generated output
+*.html
+*.tar.gz
+*_output.json
+*_results.json
+*_report*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# PostgreSQL data
+pgdata/
+
+# MkDocs generated site
+site/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+temp_*.json
+method.json

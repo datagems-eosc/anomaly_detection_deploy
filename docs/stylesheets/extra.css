@@ -1,0 +1,81 @@
+/* Custom CSS for Real-Time Anomaly Detection Documentation */
+
+/* Better code block styling */
+.highlight {
+    border-radius: 4px;
+}
+
+/* Admonition styling */
+.admonition {
+    border-radius: 4px;
+    padding: 12px;
+    margin: 1.5em 0;
+}
+
+/* Table improvements */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+}
+
+table th {
+    background-color: rgba(0, 0, 0, 0.05);
+    font-weight: 600;
+}
+
+table td, table th {
+    padding: 8px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Status badges */
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.85em;
+    font-weight: 600;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+    color: black;
+}
+
+.badge-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Footer styling */
+.md-footer__inner {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+}
+
+/* Link colors */
+a {
+    color: #1976d2;
+}
+
+a:hover {
+    color: #0d47a1;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+    table {
+        font-size: 0.9em;
+    }
+    
+    .md-typeset table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+

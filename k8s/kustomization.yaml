@@ -1,0 +1,21 @@
+# Kustomization for Weather Stream Detection
+# 使用: kubectl apply -k k8s/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: upcite
+
+resources:
+  - deployment-collector.yaml
+  - cronjob-anomaly-detector.yaml
+  - cronjob-health-check.yaml
+
+# 如果需要修改镜像地址，在这里配置
+# images:
+#   - name: <REGISTRY>/<PROJECT>/stream-detection
+#     newName: your-registry/your-project/stream-detection
+#     newTag: v1.0.0
+
+commonLabels:
+  project: datagems
+  team: weather-stream
