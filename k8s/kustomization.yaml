@@ -6,6 +6,7 @@ kind: Kustomization
 namespace: upcite
 
 resources:
+  - configmap-anomaly-runner.yaml
   - deployment-collector.yaml
   - cronjob-anomaly-detector.yaml
   - cronjob-health-check.yaml
@@ -16,6 +17,9 @@ resources:
 #     newName: your-registry/your-project/stream-detection
 #     newTag: v1.0.0
 
-commonLabels:
-  project: datagems
-  team: weather-stream
+labels:
+  - pairs:
+      project: datagems
+      team: weather-stream
+    includeSelectors: false
+    includeTemplates: true

@@ -22,14 +22,24 @@ spec:
             app: sensor-health-check
         spec:
           restartPolicy: Never
-          imagePullSecrets:
-          - name: ghcr-pull-secret
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                    - srv-prj-dg-k8s-worker01
+                    - srv-prj-dg-k8s-worker02
           containers:
           - name: health-checker
             image: ghcr.io/amy-77/stream-detection:v1
             imagePullPolicy: Always
             command:
             - python
+            - -u
+            - /opt/datagems-runner/run_anomaly.py
             - anomaly_detector.py
             - --health-check
             - --days
@@ -39,9 +49,19 @@ spec:
             env:
             - name: POSTGRES_DB
               value: ds_weather_stream
+            - name: PGCONNECT_TIMEOUT
+              value: "10"
+            - name: PGCONNECT_RETRIES
+              value: "6"
+            - name: PGCONNECT_RETRY_DELAY
+              value: "5"
             envFrom:
             - secretRef:
                 name: anomaly-detector-secrets
+            volumeMounts:
+            - name: anomaly-runner
+              mountPath: /opt/datagems-runner
+              readOnly: true
             resources:
               requests:
                 memory: "256Mi"
@@ -49,3 +69,7 @@ spec:
               limits:
                 memory: "512Mi"
                 cpu: "500m"
+          volumes:
+          - name: anomaly-runner
+            configMap:
+              name: anomaly-runner

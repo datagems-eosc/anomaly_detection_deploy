@@ -9,7 +9,7 @@ metadata:
     app: weather-stream-collector
     component: data-collection
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: weather-stream-collector
@@ -19,8 +19,16 @@ spec:
         app: weather-stream-collector
         component: data-collection
     spec:
-      imagePullSecrets:
-      - name: ghcr-pull-secret
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - srv-prj-dg-k8s-worker01
+                - srv-prj-dg-k8s-worker02
       containers:
       - name: collector
         image: ghcr.io/amy-77/stream-detection:v1

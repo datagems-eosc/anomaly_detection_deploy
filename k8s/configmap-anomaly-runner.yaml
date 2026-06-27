@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: anomaly-runner
+  namespace: upcite
+data:
+  run_anomaly.py: |
+    import importlib
+    import os
+    import sys
+    import time
+
+    password = os.environ.get("POSTGRES_PASSWORD", "")
+
+    def redact(value):
+        text = str(value)
+        if password:
+            text = text.replace(password, "***")
+        return text
+
+    def safe_print(*args, **kwargs):
+        print(*(redact(arg) for arg in args), **kwargs)
+
+    try:
+        import psycopg2
+
+        original_connect = psycopg2.connect
+
+        def connect_with_retry(*args, **kwargs):
+            kwargs.setdefault("connect_timeout", int(os.environ.get("PGCONNECT_TIMEOUT", "10")))
+            attempts = int(os.environ.get("PGCONNECT_RETRIES", "6"))
+            delay = float(os.environ.get("PGCONNECT_RETRY_DELAY", "5"))
+
+            for attempt in range(1, attempts + 1):
+                try:
+                    return original_connect(*args, **kwargs)
+                except psycopg2.OperationalError as exc:
+                    safe_print(
+                        f"PostgreSQL connect attempt {attempt}/{attempts} failed: {redact(exc)}",
+                        flush=True,
+                    )
+                    if attempt == attempts:
+                        raise
+                    time.sleep(delay)
+
+        psycopg2.connect = connect_with_retry
+    except ImportError:
+        pass
+
+    if len(sys.argv) < 2:
+        raise SystemExit("usage: run_anomaly.py <script> [args...]")
+
+    target = sys.argv[1]
+    sys.argv = sys.argv[1:]
+    sys.path.insert(0, os.getcwd())
+    module_name = os.path.splitext(os.path.basename(target))[0]
+    module = importlib.import_module(module_name)
+    module.print = safe_print
+    module.main()
