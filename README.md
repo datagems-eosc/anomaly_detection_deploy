@@ -168,6 +168,44 @@ kubectl apply -k k8s/
 kubectl get cronjobs -n upcite
 ```
 
+### Cluster Access Bundle (`datagems_cluster_only_20260626.tar.gz`)
+
+This archive contains the credentials needed to reach the DataGEMS Kubernetes
+cluster (namespace `upcite`) through the DataGEMS VPN. Extract it with:
+
+```bash
+tar xzf datagems_cluster_only_20260626.tar.gz
+```
+
+Contents:
+
+| Path | Description |
+|:-----|:------------|
+| `vpn/OPENVPN_Server_yqi.ovpn` | DataGEMS OpenVPN profile. Server `185.179.104.45:1194/udp`, adds route `172.16.59.0/24`. Uses `auth-user-pass`, so the VPN username/password are still required separately. |
+| `kubernetes/datagems-upcite.kubeconfig` | Kubeconfig for the cluster. API server `https://172.16.59.4:6443`, context `upcite`. |
+| `kubernetes/ap-explanation-static-secret.yml` | `VaultStaticSecret` manifest that syncs DB credentials from Vault into the `anomaly-detector-secrets` secret. |
+| `README.md` | Notes about the bundle. |
+
+How to use it:
+
+```bash
+# 1. Connect the VPN using vpn/OPENVPN_Server_yqi.ovpn (needs VPN user/password)
+
+# 2. Point kubectl at the bundled kubeconfig
+export KUBECONFIG=$PWD/kubernetes/datagems-upcite.kubeconfig
+
+# 3. Verify access
+kubectl -n upcite get pods
+
+# 4. Deploy
+kubectl apply -k k8s/
+```
+
+> **Security note:** This archive holds personal access credentials (VPN
+> certificate/key and a kube client certificate/key). Treat it as sensitive,
+> do not share it publicly, and rotate/re-issue the credentials once they are
+> no longer needed.
+
 ## Streaming Profiler (MoMa Integration)
 
 The `streaming_profiler.py` computes column statistics matching the [MoMa](https://github.com/datagems-eosc/moma-management) `ColumnStatistics` schema:
