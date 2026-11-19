@@ -56,6 +56,8 @@ spec:
             - name: PGCONNECT_RETRY_DELAY
               value: "5"
             envFrom:
+            - configMapRef:
+                name: anomaly-detector-config
             - secretRef:
                 name: anomaly-detector-secrets
             volumeMounts:

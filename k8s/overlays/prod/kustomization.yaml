@@ -1,0 +1,42 @@
+# Prod cluster (SCAYLE production). Apply: kubectl apply -k k8s/overlays/prod
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+configMapGenerator:
+  - name: anomaly-detector-config
+    namespace: upcite
+    literals:
+      - MOMA_API_URL=http://data-model-management-service.univr.svc.cluster.local:5000
+      - MOMA_DATASET_ID=36853ff2-4942-4019-9bf3-9d517b16a26c
+      - AAI_TOKEN_URL=https://app.datagems.eu/oauth/realms/app/protocol/openid-connect/token
+      - AAI_CLIENT_ID=anomaly-detector
+      - REQUIRE_POSTGRES=true
+generatorOptions:
+  disableNameSuffixHash: true
+
+patches:
+  # Prod node names differ from dev (srv-prj-dg-pro-k8s-worker0N): do not pin nodes.
+  # The default ServiceAccount has no pull secret in prod.
+  - target: {kind: CronJob}
+    patch: |-
+      - op: remove
+        path: /spec/jobTemplate/spec/template/spec/affinity
+      - op: add
+        path: /spec/jobTemplate/spec/template/spec/imagePullSecrets
+        value: [{name: ghcr-pull-secret}]
+      # Suspended until the AAI client "anomaly-detector" exists and a manual
+      # run has succeeded (project-sms #158). Remove this op to enable the schedule.
+      - op: add
+        path: /spec/suspend
+        value: true
+  # Prod data is ingested by the platform's NOA pipeline; ds_reader is read-only.
+  - patch: |-
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: weather-stream-collector
+        namespace: upcite
