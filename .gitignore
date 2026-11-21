@@ -37,3 +37,8 @@ Thumbs.db
 # Temp
 temp_*.json
 method.json
+
+# Cluster access credentials must never be committed
+*.ovpn
+*.kubeconfig
+.kubeconfig

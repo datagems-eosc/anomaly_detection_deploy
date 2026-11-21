@@ -1,0 +1,21 @@
+# Dev cluster (SCAYLE development). Apply: kubectl apply -k k8s/overlays/dev
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Non-secret settings. Database host/port/name come from the MoMa dataset
+# profile; only credentials (POSTGRES_USER, POSTGRES_PASSWORD,
+# AAI_CLIENT_SECRET) come from Vault via anomaly-detector-secrets.
+configMapGenerator:
+  - name: anomaly-detector-config
+    namespace: upcite
+    literals:
+      - MOMA_API_URL=http://data-model-management-service.univr.svc.cluster.local:5000
+      - MOMA_DATASET_ID=f6f189af-d446-4bc4-87a2-39faae7be8d7
+      - AAI_TOKEN_URL=https://datagems-dev.scayle.es/oauth/realms/dev/protocol/openid-connect/token
+      - AAI_CLIENT_ID=anomaly-detector
+      - REQUIRE_POSTGRES=true
+generatorOptions:
+  disableNameSuffixHash: true
