@@ -196,6 +196,31 @@ in `k8s/base/runner/`:
 
 The runner is mounted from a ConfigMap, so this works with the existing image.
 
+#### Temporary production database configuration (issue #158)
+
+On 2026-11-21, the production MoMa profile returned the development address
+`172.16.59.5:30433/ds_weather_stream`. The platform's production Airflow
+[configuration](https://github.com/datagems-eosc/dg-data-workflow-deployment-prod/blob/main/variables.json)
+uses `172.16.68.5:30433/ds_weather_stream`. A read-only check from production
+confirmed that this database contains all 14 NOA stations and current observations.
+
+`k8s/overlays/prod-direct-db` temporarily selects that verified production
+database through a ConfigMap. It explicitly disables the MoMa lookup and continues
+to use the existing Vault database credentials. This is a temporary exception to
+the normal metadata lookup, tracked in
+[project-sms #158](https://github.com/datagems-eosc/project-sms/issues/158#issuecomment-7059152231).
+It deploys neither a new database nor another collector.
+
+```bash
+kubectl apply -k k8s/overlays/prod-direct-db
+```
+
+Both full production validation runs passed on 2026-11-21, so the temporary
+overlay enables the six-hour anomaly and daily health-check schedules.
+Once infrastructure corrects the MoMa connection, apply `k8s/overlays/prod`,
+validate a manual run through MoMa, and then enable the CronJobs. The normal
+production overlay suspends schedules during this transition.
+
 ### Differences between dev and prod
 
 | | dev | prod |
