@@ -27,11 +27,14 @@ patches:
       - op: add
         path: /spec/jobTemplate/spec/template/spec/imagePullSecrets
         value: [{name: ghcr-pull-secret}]
-      # Suspended until the AAI client "anomaly-detector" exists and a manual
-      # run has succeeded (project-sms #158). Remove this op to enable the schedule.
+      # Keep both schedules enabled when applying the MoMa-based configuration.
       - op: add
         path: /spec/suspend
-        value: true
+        value: false
+      - op: add
+        path: /metadata/annotations
+        value:
+          datagems.eu/database-source: moma-profile
   # Prod data is ingested by the platform's NOA pipeline; ds_reader is read-only.
   - patch: |-
       $patch: delete

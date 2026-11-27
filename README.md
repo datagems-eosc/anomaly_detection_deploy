@@ -173,9 +173,13 @@ k8s/
 | Vault Secret | `vault-secret.yaml` | Credentials from Vault |
 
 ```bash
-kubectl apply -k k8s/overlays/dev     # or k8s/overlays/prod
-kubectl get cronjobs -n upcite
+kubectl --kubeconfig /path/to/dev.kubeconfig apply -k k8s/overlays/dev
+kubectl --kubeconfig /path/to/prod.kubeconfig apply -k k8s/overlays/prod
+kubectl --kubeconfig /path/to/prod.kubeconfig get cronjobs -n upcite
 ```
+
+Select the intended cluster's kubeconfig explicitly: dev and prod can both have
+a context named `upcite`. The production API endpoint is `172.16.68.4:6443`.
 
 ### Database connection
 
@@ -196,30 +200,26 @@ in `k8s/base/runner/`:
 
 The runner is mounted from a ConfigMap, so this works with the existing image.
 
-#### Temporary production database configuration (issue #158)
+#### Production MoMa connection
 
-On 2026-11-21, the production MoMa profile returned the development address
-`172.16.59.5:30433/ds_weather_stream`. The platform's production Airflow
-[configuration](https://github.com/datagems-eosc/dg-data-workflow-deployment-prod/blob/main/variables.json)
-uses `172.16.68.5:30433/ds_weather_stream`. A read-only check from production
-confirmed that this database contains all 14 NOA stations and current observations.
+Use `k8s/overlays/prod` for production. It enables both CronJobs and resolves the
+database connection from MoMa dataset `36853ff2-4942-4019-9bf3-9d517b16a26c` at
+each job's start. Database host and port are not set in the deployment ConfigMap.
 
-`k8s/overlays/prod-direct-db` temporarily selects that verified production
-database through a ConfigMap. It explicitly disables the MoMa lookup and continues
-to use the existing Vault database credentials. This is a temporary exception to
-the normal metadata lookup, tracked in
-[project-sms #158](https://github.com/datagems-eosc/project-sms/issues/158#issuecomment-7059152231).
-It deploys neither a new database nor another collector.
+On 2026-11-27, a production validation job confirmed that the corrected profile
+resolves to `172.16.68.5:30433/ds_weather_stream`. Full seven-day anomaly detection
+and 30-day sensor health checks through MoMa each produced nonempty reports for
+all 14 NOA stations. Database credentials and the AAI client secret continue to
+come from Vault.
 
-```bash
-kubectl apply -k k8s/overlays/prod-direct-db
-```
+The temporary `prod-direct-db` overlay, introduced on 2026-11-21 while the profile
+contained a development database address, has been removed. Deployments that used
+that path must switch to `k8s/overlays/prod`; applying it removes the old host/port
+override and keeps both schedules enabled.
 
-Both full production validation runs passed on 2026-11-21, so the temporary
-overlay enables the six-hour anomaly and daily health-check schedules.
-Once infrastructure corrects the MoMa connection, apply `k8s/overlays/prod`,
-validate a manual run through MoMa, and then enable the CronJobs. The normal
-production overlay suspends schedules during this transition.
+Reports are still written to `/tmp/anomaly_report.json` and
+`/tmp/health_report.json` in the respective containers. Persistent report storage,
+report retrieval authorization, and UI integration remain separate work items.
 
 ### Differences between dev and prod
 
@@ -228,12 +228,13 @@ production overlay suspends schedules during this transition.
 | Node pinning | `srv-prj-dg-k8s-worker01/02` | none |
 | Image pull secret | not set | `ghcr-pull-secret` |
 | Collector Deployment | present (0 replicas) | not deployed; data is ingested by the platform |
-| CronJob schedule | active | `suspend: true` until a manual run has succeeded |
+| CronJob schedule | active | active (`suspend: false`) |
 
 Run once by hand:
 
 ```bash
-kubectl -n upcite create job anomaly-run-$(date +%Y%m%d%H%M) --from=cronjob/anomaly-detector
+kubectl --kubeconfig /path/to/prod.kubeconfig -n upcite create job anomaly-run-$(date +%Y%m%d%H%M) --from=cronjob/anomaly-detector
+kubectl --kubeconfig /path/to/prod.kubeconfig -n upcite create job health-run-$(date +%Y%m%d%H%M) --from=cronjob/sensor-health-check
 ```
 
 Cluster access (VPN profile and kubeconfig) is personal and is requested through
