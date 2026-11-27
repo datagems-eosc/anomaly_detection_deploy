@@ -154,57 +154,91 @@ docker exec datagem-app python anomaly_detector.py \
 
 ## Kubernetes Deployment
 
-All manifests are in `k8s/`, managed via Kustomize. Deployed to namespace `upcite`.
+Manifests are in `k8s/`, managed via Kustomize, and deployed to namespace `upcite`.
 
-| Resource | File | Schedule |
+```
+k8s/
+├── base/                 # shared manifests
+│   └── runner/           # run_anomaly.py + moma_connection.py, mounted into the pods
+└── overlays/
+    ├── dev/              # SCAYLE development cluster
+    └── prod/             # SCAYLE production cluster
+```
+
+| Resource | File (`k8s/base/`) | Schedule |
 |:---------|:-----|:---------|
 | Anomaly Detection CronJob | `cronjob-anomaly-detector.yaml` | Every 6 hours |
-| Health Check CronJob | `cronjob-health-check.yaml` | Daily at midnight |
-| Manual Job | `job-anomaly-manual.yaml` | On-demand |
-| Vault Secret | `vault-secret.yaml` | DB credentials |
+| Health Check CronJob | `cronjob-health-check.yaml` | Daily at 08:00 |
+| Manual Job | `job-anomaly-manual.yaml` | On-demand (not part of the kustomization) |
+| Vault Secret | `vault-secret.yaml` | Credentials from Vault |
 
 ```bash
-kubectl apply -k k8s/
-kubectl get cronjobs -n upcite
+kubectl --kubeconfig /path/to/dev.kubeconfig apply -k k8s/overlays/dev
+kubectl --kubeconfig /path/to/prod.kubeconfig apply -k k8s/overlays/prod
+kubectl --kubeconfig /path/to/prod.kubeconfig get cronjobs -n upcite
 ```
 
-### Cluster Access Bundle (`datagems_cluster_only_20260626.tar.gz`)
+Select the intended cluster's kubeconfig explicitly: dev and prod can both have
+a context named `upcite`. The production API endpoint is `172.16.68.4:6443`.
 
-This archive contains the credentials needed to reach the DataGEMS Kubernetes
-cluster (namespace `upcite`) through the DataGEMS VPN. Extract it with:
+### Database connection
+
+Vault only holds credentials. Database host, port and name are read at start-up
+from the dataset profile in MoMa (Data Model Management), by the runner wrapper
+in `k8s/base/runner/`:
+
+1. Get a token from the DataGEMS AAI with the client-credentials grant
+   (client `anomaly-detector`, scope `datagems`).
+2. `GET {MOMA_API_URL}/api/v1/dataset/get/{MOMA_DATASET_ID}`.
+3. Read `postgresql://host:port/db` from the `dg:DatabaseConnection` node.
+
+| Setting | Source |
+|:--------|:-------|
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `AAI_CLIENT_SECRET` | Vault `kvv2/upcite/anomaly-detector` → Secret `anomaly-detector-secrets` |
+| `MOMA_API_URL`, `MOMA_DATASET_ID`, `AAI_TOKEN_URL`, `AAI_CLIENT_ID` | ConfigMap `anomaly-detector-config` (per overlay) |
+| `REQUIRE_POSTGRES=true` | Fail instead of falling back to a local SQLite file |
+
+The runner is mounted from a ConfigMap, so this works with the existing image.
+
+#### Production MoMa connection
+
+Use `k8s/overlays/prod` for production. It enables both CronJobs and resolves the
+database connection from MoMa dataset `36853ff2-4942-4019-9bf3-9d517b16a26c` at
+each job's start. Database host and port are not set in the deployment ConfigMap.
+
+On 2026-11-27, a production validation job confirmed that the corrected profile
+resolves to `172.16.68.5:30433/ds_weather_stream`. Full seven-day anomaly detection
+and 30-day sensor health checks through MoMa each produced nonempty reports for
+all 14 NOA stations. Database credentials and the AAI client secret continue to
+come from Vault.
+
+The temporary `prod-direct-db` overlay, introduced on 2026-11-21 while the profile
+contained a development database address, has been removed. Deployments that used
+that path must switch to `k8s/overlays/prod`; applying it removes the old host/port
+override and keeps both schedules enabled.
+
+Reports are still written to `/tmp/anomaly_report.json` and
+`/tmp/health_report.json` in the respective containers. Persistent report storage,
+report retrieval authorization, and UI integration remain separate work items.
+
+### Differences between dev and prod
+
+| | dev | prod |
+|:--|:--|:--|
+| Node pinning | `srv-prj-dg-k8s-worker01/02` | none |
+| Image pull secret | not set | `ghcr-pull-secret` |
+| Collector Deployment | present (0 replicas) | not deployed; data is ingested by the platform |
+| CronJob schedule | active | active (`suspend: false`) |
+
+Run once by hand:
 
 ```bash
-tar xzf datagems_cluster_only_20260626.tar.gz
+kubectl --kubeconfig /path/to/prod.kubeconfig -n upcite create job anomaly-run-$(date +%Y%m%d%H%M) --from=cronjob/anomaly-detector
+kubectl --kubeconfig /path/to/prod.kubeconfig -n upcite create job health-run-$(date +%Y%m%d%H%M) --from=cronjob/sensor-health-check
 ```
 
-Contents:
-
-| Path | Description |
-|:-----|:------------|
-| `vpn/OPENVPN_Server_yqi.ovpn` | DataGEMS OpenVPN profile. Server `185.179.104.45:1194/udp`, adds route `172.16.59.0/24`. Uses `auth-user-pass`, so the VPN username/password are still required separately. |
-| `kubernetes/datagems-upcite.kubeconfig` | Kubeconfig for the cluster. API server `https://172.16.59.4:6443`, context `upcite`. |
-| `kubernetes/ap-explanation-static-secret.yml` | `VaultStaticSecret` manifest that syncs DB credentials from Vault into the `anomaly-detector-secrets` secret. |
-| `README.md` | Notes about the bundle. |
-
-How to use it:
-
-```bash
-# 1. Connect the VPN using vpn/OPENVPN_Server_yqi.ovpn (needs VPN user/password)
-
-# 2. Point kubectl at the bundled kubeconfig
-export KUBECONFIG=$PWD/kubernetes/datagems-upcite.kubeconfig
-
-# 3. Verify access
-kubectl -n upcite get pods
-
-# 4. Deploy
-kubectl apply -k k8s/
-```
-
-> **Security note:** This archive holds personal access credentials (VPN
-> certificate/key and a kube client certificate/key). Treat it as sensitive,
-> do not share it publicly, and rotate/re-issue the credentials once they are
-> no longer needed.
+Cluster access (VPN profile and kubeconfig) is personal and is requested through
+`datagems-eosc/project-sms`. Never commit those files to this repository.
 
 ## Streaming Profiler (MoMa Integration)
 

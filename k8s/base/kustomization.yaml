@@ -1,12 +1,12 @@
 # Kustomization for Weather Stream Detection
-# 使用: kubectl apply -k k8s/
+# 使用: kubectl apply -k k8s/overlays/dev  或  k8s/overlays/prod
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 namespace: upcite
 
 resources:
-  - configmap-anomaly-runner.yaml
+  - vault-secret.yaml
   - deployment-collector.yaml
   - cronjob-anomaly-detector.yaml
   - cronjob-health-check.yaml
@@ -23,3 +23,13 @@ labels:
       team: weather-stream
     includeSelectors: false
     includeTemplates: true
+
+# The runner wrapper and the MoMa lookup are mounted into the pods at
+# /opt/datagems-runner, so they can change without rebuilding the image.
+configMapGenerator:
+  - name: anomaly-runner
+    files:
+      - runner/run_anomaly.py
+      - runner/moma_connection.py
+generatorOptions:
+  disableNameSuffixHash: true
